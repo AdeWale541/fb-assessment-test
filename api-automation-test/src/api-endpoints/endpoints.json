@@ -1,0 +1,13 @@
+{
+    "healthService": {
+        "getHealth": { "url": "/health", "permissions": [] }
+    },
+    "walletsService": {
+        "createWallet": { "url": "/wallets", "permissions": [] },
+        "getWalletById": { "url": "/wallets/:id", "permissions": [] },
+        "creditWallet": { "url": "/wallets/:id/credit", "permissions": [] }
+    },
+    "transfersService": {
+        "createTransfer": { "url": "/transfers", "permissions": [] }
+    }
+}
