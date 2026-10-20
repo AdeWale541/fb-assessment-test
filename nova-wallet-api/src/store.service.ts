@@ -4,7 +4,7 @@ import path from "node:path";
 import { Db } from "./types";
 
 function emptyDb(): Db {
-  return { wallets: {}, transfers: [], idempotencyKeys: {} };
+  return { wallets: {}, transfers: [], idempotencyKeys: {}, users: {} };
 }
 
 /**
@@ -33,16 +33,45 @@ export class StoreService {
   private db: Db;
 
   constructor() {
-    this.db = this.load();
+    const { db, migrated } = this.load();
+    this.db = db;
+    // Persist immediately so the on-disk file reflects the current schema
+    // right away, rather than waiting on whatever request happens to be the
+    // first to trigger a write.
+    if (migrated) {
+      this.persist();
+    }
   }
 
-  private load(): Db {
+  private load(): { db: Db; migrated: boolean } {
     if (!fs.existsSync(this.dbPath)) {
       fs.mkdirSync(path.dirname(this.dbPath), { recursive: true });
       fs.writeFileSync(this.dbPath, JSON.stringify(emptyDb(), null, 2));
     }
     const raw = fs.readFileSync(this.dbPath, "utf-8");
-    return JSON.parse(raw) as Db;
+    const db = JSON.parse(raw) as Db;
+    let migrated = false;
+
+    // Backward-compatible with a db.json written before the `users`
+    // collection existed, so existing wallet/transfer data keeps loading.
+    if (!db.users) {
+      db.users = {};
+      migrated = true;
+    }
+    // Backward-compatible with a db.json written before `isAdmin` existed:
+    // one-time backfill using the email-match heuristic that used to be the
+    // only way to identify the admin user. Once `isAdmin` is actually set,
+    // it's authoritative - this only fires for pre-existing records that
+    // predate the field, so a later DEFAULT_USER_EMAIL change can never
+    // "unmark" an already-seeded admin.
+    const defaultEmail = (process.env.DEFAULT_USER_EMAIL || "admin@novapay.dev").toLowerCase();
+    for (const user of Object.values(db.users)) {
+      if (user.isAdmin === undefined) {
+        user.isAdmin = user.email === defaultEmail;
+        migrated = true;
+      }
+    }
+    return { db, migrated };
   }
 
   // Write-then-rename keeps db.json from ever being left half-written if the
@@ -68,5 +97,18 @@ export class StoreService {
 
   readDb(): Db {
     return this.db;
+  }
+
+  /**
+   * Runs a synchronous, startup-only mutation (e.g. seeding a default
+   * record) directly against the DB without going through the mutex - safe
+   * only because this runs during app bootstrap, before any request traffic
+   * is possible. Persists only if `mutator` reports an actual change.
+   */
+  mutateIfNeeded(mutator: (db: Db) => boolean): void {
+    const changed = mutator(this.db);
+    if (changed) {
+      this.persist();
+    }
   }
 }

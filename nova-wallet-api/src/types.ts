@@ -25,8 +25,18 @@ export interface IdempotencyRecord {
   createdAt: string;
 }
 
+export interface User {
+  id: string;
+  email: string;
+  fullName: string;
+  passwordHash: string; // "salt:hash", never the plaintext password
+  createdAt: string;
+  isAdmin: boolean; // true only for the seeded default user; survives POST /admin/clear
+}
+
 export interface Db {
   wallets: Record<string, Wallet>;
   transfers: Transfer[];
   idempotencyKeys: Record<string, IdempotencyRecord>;
+  users: Record<string, User>;
 }
