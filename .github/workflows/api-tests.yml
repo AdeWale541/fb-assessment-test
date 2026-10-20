@@ -34,7 +34,32 @@ jobs:
         working-directory: api-automation-test
         run: npm run typecheck
 
-      - name: Run API test suite (Playwright auto-builds and starts nova-wallet-api via webServer)
+      - name: Build nova-wallet-api
+        working-directory: nova-wallet-api
+        run: npm run build
+
+      - name: Start nova-wallet-api
+        working-directory: nova-wallet-api
+        env:
+          API_TOKEN: novapay-dev-token
+        run: |
+          nohup npm run start > /tmp/nova-wallet-api.log 2>&1 &
+          echo $! > /tmp/nova-wallet-api.pid
+
+      - name: Wait for nova-wallet-api to become healthy
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:3000/health > /dev/null; then
+              echo "nova-wallet-api is healthy after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "nova-wallet-api did not become healthy in time"
+          cat /tmp/nova-wallet-api.log
+          exit 1
+
+      - name: Run API test suite
         working-directory: api-automation-test
         env:
           CI: true
@@ -49,3 +74,7 @@ jobs:
           name: playwright-report
           path: api-automation-test/playwright-report/
           retention-days: 14
+
+      - name: Stop nova-wallet-api
+        if: always()
+        run: kill "$(cat /tmp/nova-wallet-api.pid)" 2>/dev/null || true

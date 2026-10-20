@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 import config from '../config/config';
 import { HttpStatus } from '../enums/enums';
 import { generateIdempotencyKey } from '../helper/functions-helper';
-import { Base, TransfersService, WalletsService } from '../services';
+import { AuthService, Base, TransfersService, WalletsService } from '../services';
 import { data, users } from '../test-data';
 
 const headers = { authorization: `Bearer ${config.API_TOKEN}` };
@@ -21,6 +21,7 @@ test.describe(
                 const base = new Base({ test, expect, request });
                 const walletsService = new WalletsService(base);
                 const transfersService = new TransfersService(base);
+                const authService = new AuthService(base);
 
                 const createResponse = await walletsService.createWallet({});
                 const getResponse = await walletsService.getWalletById({ pathParams: { id: data.nonExistentWalletId } });
@@ -32,12 +33,18 @@ test.describe(
                     body: { fromWalletId: data.nonExistentWalletId, toWalletId: data.nonExistentWalletId, amountKobo: 100 },
                     headers: { 'Idempotency-Key': generateIdempotencyKey('no-auth') },
                 });
+                // /auth/signup and /auth/login are deliberately excluded here -
+                // they're the one pair of endpoints meant to stay public.
+                const meResponse = await authService.getUserInfo({
+                    body: authService.generateCredentialsBody({ email: config.DEFAULT_USER_EMAIL, password: config.DEFAULT_USER_PASSWORD }),
+                });
 
-                await test.step(`Verify all four endpoints respond ${HttpStatus.UNAUTHORIZED} without a token`, () => {
+                await test.step(`Verify all five protected endpoints respond ${HttpStatus.UNAUTHORIZED} without a token`, () => {
                     expect.soft(createResponse.raw.status()).toBe(HttpStatus.UNAUTHORIZED);
                     expect.soft(getResponse.raw.status()).toBe(HttpStatus.UNAUTHORIZED);
                     expect.soft(creditResponse.raw.status()).toBe(HttpStatus.UNAUTHORIZED);
                     expect.soft(transferResponse.raw.status()).toBe(HttpStatus.UNAUTHORIZED);
+                    expect.soft(meResponse.raw.status()).toBe(HttpStatus.UNAUTHORIZED);
                 });
             });
 

@@ -7,19 +7,21 @@ export default defineConfig({
     forbidOnly: !!process.env.CI,
     retries: process.env.CI ? 1 : 0,
     timeout: 30_000,
-    reporter: [['list'], ['html', { open: 'never' }]],
+    reporter: [['list'], ['html', { open: 'never' }], ['./src/reporter/summary-reporter.ts']],
     use: {
         baseURL: config.API_BASE_URL,
         trace: 'on-first-retry',
     },
     projects: [{ name: 'api' }],
-    // Boots nova-wallet-api itself so `npm test` is self-sufficient locally and
-    // in CI. If you point API_BASE_URL at an already-running/remote instance,
-    // reuseExistingServer picks that up instead of spawning a second one.
+    // Boots nova-wallet-api itself so a plain local `npm test` is
+    // self-sufficient. reuseExistingServer is unconditionally true so this
+    // never fights the explicit build/start/health-check steps the CI
+    // workflow runs itself before this suite starts - Playwright checks the
+    // health URL first and only spawns its own copy if nothing answered.
     webServer: {
         command: 'npm run build --prefix ../nova-wallet-api && npm run start --prefix ../nova-wallet-api',
         url: `${config.API_BASE_URL}/health`,
-        reuseExistingServer: !process.env.CI,
+        reuseExistingServer: true,
         timeout: 60_000,
     },
 });

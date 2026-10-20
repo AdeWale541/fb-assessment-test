@@ -64,3 +64,26 @@ export type SetupFundedTransferArgs = {
     transferAmountKobo: number;
     idempotencyKey?: string;
 };
+
+// Auth service
+export type SignUpArgs = RequestArguments & {
+    body?: {
+        email: string;
+        fullName: string;
+        password: string;
+    };
+};
+
+export type CredentialsArgs = RequestArguments & {
+    body?: {
+        email: string;
+        password: string;
+    };
+};
+
+export type VerifyUserShapeArgs = {
+    user: any;
+    expectedEmail?: string;
+    expectedFullName?: string;
+    description?: string;
+};

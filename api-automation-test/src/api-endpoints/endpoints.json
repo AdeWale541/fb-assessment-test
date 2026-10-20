@@ -2,6 +2,11 @@
     "healthService": {
         "getHealth": { "url": "/health", "permissions": [] }
     },
+    "authService": {
+        "signUp": { "url": "/auth/signup", "permissions": [] },
+        "login": { "url": "/auth/login", "permissions": [] },
+        "getUserInfo": { "url": "/auth/me", "permissions": [] }
+    },
     "walletsService": {
         "createWallet": { "url": "/wallets", "permissions": [] },
         "getWalletById": { "url": "/wallets/:id", "permissions": [] },

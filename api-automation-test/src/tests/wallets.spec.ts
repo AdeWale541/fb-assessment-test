@@ -1,7 +1,8 @@
 import { expect, test } from '@playwright/test';
 import config from '../config/config';
 import { HttpStatus, ResponseTime } from '../enums/enums';
-import { Base, WalletsService } from '../services';
+import { generateUniqueEmail } from '../helper/functions-helper';
+import { AuthService, Base, WalletsService } from '../services';
 import { data } from '../test-data';
 
 const headers = { authorization: `Bearer ${config.API_TOKEN}` };
@@ -102,6 +103,44 @@ test.describe(
                 });
             });
         }
+
+        test('Verify a user can only create a single wallet - a second attempt is rejected with a graceful, valid error message (negative)', async ({
+            request,
+        }) => {
+            const base = new Base({ test, expect, request });
+            const authService = new AuthService(base);
+            const walletsService = new WalletsService(base);
+
+            const email = generateUniqueEmail('one-wallet-per-user');
+            const password = 'correct-horse-1';
+            await authService.signUp({ body: authService.generateSignUpBody({ email, fullName: 'One Wallet Per User', password }) });
+            const loginResponse = await authService.login({ body: authService.generateCredentialsBody({ email, password }) });
+            const userHeaders = { authorization: `Bearer ${loginResponse.body.token}` };
+
+            const firstWalletResponse = await walletsService.createWallet({ headers: userHeaders });
+            // Hard gate: the "second wallet rejected" assertion below is
+            // meaningless if the first wallet itself never succeeded.
+            expect(firstWalletResponse.raw.status()).toBe(HttpStatus.CREATED);
+
+            const secondWalletResponse = await walletsService.createWallet({ headers: userHeaders });
+
+            await test.step(
+                `Verify a second wallet creation by the same user is rejected with ${HttpStatus.CONFLICT}, not another ${HttpStatus.CREATED}`,
+                () => {
+                    expect.soft(secondWalletResponse.raw.status()).toBe(HttpStatus.CONFLICT);
+                }
+            );
+
+            await test.step('Verify the rejection is graceful: never a server error, and always a valid, human-readable error message', () => {
+                expect
+                    .soft(secondWalletResponse.raw.status(), 'a known business rule must never surface as a 500 crash')
+                    .toBeLessThan(500);
+                expect.soft(typeof secondWalletResponse.body.error, 'response must include a string error message').toBe('string');
+                expect
+                    .soft((secondWalletResponse.body.error ?? '').length, 'error message must not be empty')
+                    .toBeGreaterThan(0);
+            });
+        });
 
         test('Verify creating a wallet without auth is rejected (negative)', async ({ request }) => {
             const base = new Base({ test, expect, request });

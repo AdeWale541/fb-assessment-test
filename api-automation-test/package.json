@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "test": "playwright test --project=api",
+    "auth-svc": "playwright test --grep @auth_svc",
     "wallets-svc": "playwright test --grep @wallets_svc",
     "transfers-svc": "playwright test --grep @transfers_svc",
     "health-svc": "playwright test --grep @health_svc",

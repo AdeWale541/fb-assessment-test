@@ -19,6 +19,15 @@ export class Base {
         this.expect = args.expect;
     }
 
+    assertEmail(value: any, description?: string) {
+        const testDescription = description ?? `Verify ${value} is a valid email address`;
+        if (!validator.isEmail(String(value))) {
+            this.test.step(testDescription, () => {
+                this.expect.soft(validator.isEmail(String(value))).toBeTruthy();
+            });
+        }
+    }
+
     assertUUID(value: any, description?: string) {
         const testDescription = description ?? `Verify ${value} is a valid UUID`;
         if (!validator.isUUID(String(value))) {

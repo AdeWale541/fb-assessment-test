@@ -12,3 +12,9 @@ export const generateRandomString = (length: number = 8): string => {
 export const generateIdempotencyKey = (prefix: string = 'test'): string => {
     return `${prefix}-${Date.now()}-${generateRandomString(6)}`;
 };
+
+// Plus-addressing style unique email per run - signup rejects a reused
+// email with 409, so every signup test needs a fresh one.
+export const generateUniqueEmail = (prefix: string = 'test'): string => {
+    return `${prefix}.${Date.now()}.${generateRandomString(6)}@example.com`.toLowerCase();
+};
